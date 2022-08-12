@@ -2,7 +2,7 @@
 把测试图片提前resize到640*640, 通过添加灰边来保持长宽比不变
 
 Usage:
-    $ python .\script\getPadImg.py
+    $ python script\getPadImg.py
 """
 
 import os

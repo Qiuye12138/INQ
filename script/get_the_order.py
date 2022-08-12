@@ -1,7 +1,6 @@
 import torch
-import struct
 import numpy as np
-
+from utils import bin2numpy_fp32
 
 
 #-------------------------------------#
@@ -15,38 +14,7 @@ PATH_FLOAT = 'json&raw/YoloV5_parsed.raw'
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-raw_addr_float = {}
-raw_size_float = {}
-weights_float  = {}
-
-raw_id   = []
-
-whole_length_float = len(open(PATH_FLOAT, 'rb').read())
-binfile_float = open(PATH_FLOAT, 'rb')
-layer_num = struct.unpack('<i', binfile_float.read(4))[0]
-
-
-for i in range(layer_num):
-    layer_id   = struct.unpack('<i', binfile_float.read(4))[0]
-    start_addr_float = struct.unpack('<i', binfile_float.read(4))[0]
-    raw_addr_float[layer_id] = start_addr_float
-    raw_id.append(layer_id)
-
-
-for i in range(len(raw_id)-1):
-    raw_size_float[raw_id[i]] = raw_addr_float[raw_id[i+1]] - raw_addr_float[raw_id[i]]
-
-
-raw_size_float[raw_id[i+1]] = whole_length_float - raw_addr_float[raw_id[i+1]]
-
-
-for i in raw_id:
-    weights_float[i] = []
-    for j in range(0, raw_size_float[i], 4):
-        data = struct.unpack('<f', binfile_float.read(4))[0]
-        weights_float[i].append(data)
-
-
+weights_float = bin2numpy_fp32(PATH_FLOAT)
 model = torch.load(PATH_MODEL).state_dict()
 
 

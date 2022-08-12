@@ -68,7 +68,7 @@ with open(JSON_PATH, 'r') as f:
 #-------------------------------------#
 #       输出文件
 #-------------------------------------#
-with open('ICRAFT.py', 'w') as f:
+with open('script/ICRAFT.py', 'w') as f:
     f.write('from itertools import cycle\n\n')
 
     f.write('SUM_L  = cycle([')
