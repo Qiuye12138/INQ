@@ -1,0 +1,9 @@
+__pycache__
+
+assets/
+json&raw/
+logs/
+res/
+weights/
+
+ICRAFT.py
