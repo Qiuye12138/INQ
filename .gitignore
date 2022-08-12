@@ -1,9 +1,13 @@
 __pycache__
 
-assets/
+val640/
+val2017/
 json&raw/
 logs/
 res/
-weights/
 
+instances_val2017.json
 ICRAFT.py
+
+*.pth
+*.torchscript

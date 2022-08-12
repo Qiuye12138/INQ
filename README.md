@@ -1,8 +1,9 @@
 ```bash
 目录结构
 ├── assets
-│   ├── val2017
-│   └── val640                      # 由python script\getPadImg.py生成
+│   ├── val2017                     # 自行下载
+│   ├── val640                      # 由python script\getPadImg.py生成
+│   └── instances_val2017.json      # 自行下载
 ├── configs
 │   └── YoloV5_BY_V2.0.ini
 ├── images
