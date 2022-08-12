@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-from ICRAFT import SCALE_TABLE
+from get_the_order import QWERT
 import matplotlib.pyplot as plt
+from utils import get_scale_dict
 
 
 
@@ -9,7 +10,15 @@ import matplotlib.pyplot as plt
 #       文件路径
 #-------------------------------------#
 BEFORE_INQ = 'weights/quantize.pth'
-AFTER_INQ  = 'weights/INQ875.pth'
+AFTER_INQ  = 'weights/INQ99.pth'
+PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
+
+
+
+#-------------------------------------#
+#       解析Scale
+#-------------------------------------#
+SCALE_TABLE = get_scale_dict(PATH_CSV)
 
 
 
@@ -21,8 +30,8 @@ b = torch.load(AFTER_INQ , map_location = torch.device('cpu'))
 
 for key in a.keys():
 
-    x = a[key].cpu().flatten().numpy() / SCALE_TABLE[key]
-    y = b[key].cpu().flatten().numpy() / SCALE_TABLE[key]
+    x = a[key].cpu().flatten().numpy() / SCALE_TABLE[QWERT[key]]
+    y = b[key].cpu().flatten().numpy() / SCALE_TABLE[QWERT[key]]
 
     # 50% 分界线
     I = np.quantile(abs(y), 1 - 0.5)

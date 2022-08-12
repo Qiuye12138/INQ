@@ -1,8 +1,7 @@
 import torch
 from tqdm import tqdm
 from get_the_order import ORDER
-from utils import bin2numpy_int8
-from utils import get_scale_dict
+from utils import bin2numpy_int8, get_scale_dict
 
 
 

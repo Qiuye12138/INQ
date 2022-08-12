@@ -16,9 +16,9 @@ from pycocotools.cocoeval import COCOeval
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-JSON_PATH = 'json&raw/YoloV5_quantized.json'
-RAW_PATH  = 'json&raw/YoloV5_quantized.raw'
-RES_PATH  = 'res/QUANT/'
+JSON_PATH = 'json&raw/YoloV5_quantized_INQ.json'
+RAW_PATH  = 'json&raw/YoloV5_quantized_INQ.raw'
+RES_PATH  = 'res/QUANT_INQ/'
 
 shutil.rmtree(RES_PATH, ignore_errors = True)
 os.makedirs(RES_PATH)

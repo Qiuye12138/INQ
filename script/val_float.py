@@ -5,7 +5,7 @@ import torch
 import shutil
 import torchvision
 from tqdm import tqdm
-from mAP import yolores2cocores
+from utils import yolores2cocores
 import icraftBY.simulator as sim
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval

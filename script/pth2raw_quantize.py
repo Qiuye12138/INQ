@@ -1,18 +1,24 @@
 import torch
 import struct
-from ICRAFT import SCALE_TABLE
-from get_the_order import ORDER
 from tqdm import tqdm
-from utils import get_bias_list
+from get_the_order import ORDER
+from utils import get_bias_list, get_scale_dict
 
 
 
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-PATH_MODEL = 'weights/quantize.pth'
-PATH_QUANT = 'json&raw\YoloV5_quantized.raw'
+PATH_MODEL = 'weights/INQ99.pth'
+PATH_QUANT = 'json&raw/YoloV5_quantized.raw'
 PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
+
+
+
+#-------------------------------------#
+#       解析Scale
+#-------------------------------------#
+SCALE_TABLE = get_scale_dict(PATH_CSV)
 
 
 
@@ -69,7 +75,7 @@ WEIGHT = torch.load(PATH_MODEL, map_location = torch.device('cpu'))
 #-------------------------------------#
 for k in tqdm(weights_quant.keys()):
 
-    WEIGHT[ORDER[k]] = torch.round(WEIGHT[ORDER[k]] / SCALE_TABLE[ORDER[k]])
+    WEIGHT[ORDER[k]] = torch.round(WEIGHT[ORDER[k]] / SCALE_TABLE[k])
 
     try:
         WEIGHT[ORDER[k]] = WEIGHT[ORDER[k]].permute(2, 3, 1, 0).contiguous()

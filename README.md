@@ -14,21 +14,22 @@
 ├── res                             # 由python script\val_xxx.py生成
 ├── script
 │   ├── create_ICRAFT.py
-│   ├── detect_float.py
-│   ├── detect_quant.py
-│   ├── getPadImg.py
 │   ├── get_the_order.py
+│   ├── getPadImg.py
 │   ├── ICRAFT.py                   # 由python script\create_ICRAFT.py生成
-│   ├── mAP.py
+│   ├── plot.py
 │   ├── pth2raw_quantize.py
 │   ├── raw2pth_norm.py
 │   ├── raw2pth_quantize.py
+│   ├── utils.py
 │   ├── val_float.py
+│   ├── val_quant_INQ.py
 │   └── val_quant.py
 └── weights
-    ├── base.torchscript
-    ├── norm.pth
-    └── quantize.pth
+    ├── base.torchscript            # 基准模型，由第一章生成
+    ├── INQ99.pth                   # 最终模型，由第三章生成
+    ├── norm.pth                    # 由python script\raw2pth_norm.py生成
+    └── quantize.pth                # 由python script\raw2pth_quantize.py生成
 ```
 
 # 一、得到基准模型
@@ -41,21 +42,14 @@
 
 ```bash
 python3 val.py --data coco.yaml --weights yolov5n.pt --iou-thres 0.65
-
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.280
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.457
-```
-
-1.3、查看该模型推理效果
-
-```bash
-python3 detect.py --weights yolov5n.pt --source data/images/bus.jpg --conf-thres 0.5
 ```
 
 1.3、导出模型，这会将模型中的`BatchNorm`层融合
 
 ```bash
-# 将在yolov5n.pt附近将生成yolov5n.torchscript
+# 将在yolov5n.pt附近生成yolov5n.torchscript
 python3 export.py --weights yolov5n.pt --include torchscript 
 ```
 
@@ -72,18 +66,17 @@ git checkout Icraft
 >
 > - 得到一个原生不带`BatchNorm`的模型供后续实验使用（受原`YoloV5`工程限制）
 > - 确认模型已经收敛，继续训练确实无法提升精度（防止重训练本身提升精度干扰`INQ`）
+>
+> --weights : 强制重新从yaml创建模型，而不是加载已有模型
 
 ```bash
 python3 train_fuse.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --batch-size 128 --device '1' --epochs 30 --name fuse
-
-# --weights '' : 强制重新从yaml创建模型，而不是加载已有模型
 ```
 
 1.6、测试新模型精度
 
 ```bash
 python3 val.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.280
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.457
 ```
@@ -91,7 +84,7 @@ python3 val.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-
 1.7、导出模型
 
 ```bash
-# 将在best.pt附近将生成best.torchscript
+# 将在best.pt附近生成best.torchscript
 python3 export.py --weights runs/train/fuse/weights/best.pt --include torchscript 
 
 # 重命名为base.torchscript，作为后续实验的基准
@@ -118,32 +111,7 @@ python script\getPadImg.py
 icraft compile configs\YoloV5_JDY_V2.0.ini
 ```
 
-2.4、查看模型推理效果
-
-```bash
-python script\detect_float.py	# Icraft-浮点
-python script\detect_quant.py	# Icraft-定点
-```
-
-2.5、测试`Icraft`浮点精度
-
-```bash
-python script\val_float.py
-
-# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.260
-# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.434
-```
-
-2.6、测试`Icraft`定点精度
-
-```bash
-python script\val_quant.py
-
-# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.226  ↓3.4%
-# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.394  ↓4.0%
-```
-
-2.7、`Icraft.raw`转回`Pytorch.pth`
+2.4、`Icraft.raw`转回`Pytorch.pth`
 
 ```bash
 # 生成norm.pth
@@ -153,7 +121,7 @@ python script\raw2pth_norm.py
 python script\raw2pth_quantize.py
 ```
 
-2.8、生成Icraft参数
+2.5、生成Icraft参数
 
 ```bash
 # 生成ICRAFT.py
@@ -185,7 +153,6 @@ git checkout INQ
 
 ```bash
 python3 val_norm.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.280
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.457
 ```
@@ -194,7 +161,6 @@ python3 val_norm.py --data coco.yaml --weights runs/train/fuse/weights/best.pt -
 
 ```bash
 python3 val_quantize.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.244  ↓3.6%
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.419  ↓3.8%
 ```
@@ -202,50 +168,69 @@ python3 val_quantize.py --data coco.yaml --weights runs/train/fuse/weights/best.
 3.5、开始INQ
 
 ```bash
-# INQ50
 python3 train_INQ50.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128 --device '1' --epochs 15 --hyp data/hyps/stable_hyp.yaml --name INQ50
 
-# INQ75
 python3 train_INQ75.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128 --device '1' --epochs 15 --hyp data/hyps/stable_hyp.yaml --name INQ75
 
-# INQ875
 python3 train_INQ875.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128 --device '1' --epochs 15 --hyp data/hyps/stable_hyp.yaml --name INQ875
 
-# INQ95
 python3 train_INQ95.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128 --device '1' --epochs 15 --hyp data/hyps/stable_hyp.yaml --name INQ95
 
-# INQ99
 python3 train_INQ99.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128 --device '1' --epochs 15 --hyp data/hyps/stable_hyp.yaml --name INQ99
 ```
 
 3.6、测试INQ精度
 
 ```bash
-# INQ50
 python3 val.py --data coco.yaml --weights runs/train/INQ50/weights/best.pt --iou-thres 0.65
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.266  ↓1.4%
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.444  ↓1.3%
 
-# INQ75
 python3 val.py --data coco.yaml --weights runs/train/INQ75/weights/best.pt  --iou-thres 0.65
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.266  ↓1.4%
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.443  ↓1.4%
 
-# INQ875
 python3 val.py --data coco.yaml --weights runs/train/INQ875/weights/best.pt --iou-thres 0.65
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.266  ↓1.4%
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.444  ↓1.3%
 
-# INQ95
 python3 val.py --data coco.yaml --weights runs/train/INQ95/weights/best.pt --iou-thres 0.65
 # Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.266  ↓1.4%
 # Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.443  ↓1.4%
 
-# INQ99
 python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou-thres 0.65
-# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.264  ↓1.6%
-# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.441  ↓1.6%
+# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.263  ↓1.7%
+# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.442  ↓1.5%
 ```
 
 3.7、`Pytorch.pth`转回`Icraft.raw`
+
+```bash
+# 将在json&raw文件夹下生成YoloV5_quantized_INQ.raw
+python script\pth2raw_quantize.py
+
+# 复制一份json
+cp json&raw\YoloV5_quantized.json json&raw\YoloV5_quantized_INQ.json
+
+# 将json&raw\YoloV5_quantized_INQ.json内的"raw_md5"改为YoloV5_quantized_INQ.raw的md5值
+```
+
+3.8、效果测试
+
+```bash
+# Icraft浮点
+python script\val_float.py
+# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.260
+# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.434
+
+# Icraft定点-INQ前
+python script\val_quant.py
+# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.226  ↓3.4%
+# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.394  ↓4.0%
+
+# Icraft定点-INQ后
+python script\val_quant_INQ.py
+# Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.233  ↓2.7%
+# Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.407  ↓2.7%
+```
 
