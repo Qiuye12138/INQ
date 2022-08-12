@@ -213,6 +213,10 @@ python script\pth2raw_quantize.py
 # 复制一份json
 cp json&raw\YoloV5_quantized.json json&raw\YoloV5_quantized_INQ.json
 
+# 求md5
+certutil -hashfile json&raw\YoloV5_quantized_INQ.raw MD5    # Windows
+md5sum json&raw/YoloV5_quantized_INQ.raw MD5                # Linux
+
 # 将json&raw\YoloV5_quantized_INQ.json内的"raw_md5"改为YoloV5_quantized_INQ.raw的md5值
 ```
 

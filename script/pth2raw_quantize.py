@@ -1,8 +1,7 @@
 import torch
 import struct
-from tqdm import tqdm
 from get_the_order import ORDER
-from utils import get_bias_list, get_scale_dict
+from utils import get_bias_list, get_scale_dict, bin2numpy_int8
 
 
 
@@ -25,55 +24,20 @@ SCALE_TABLE = get_scale_dict(PATH_CSV)
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-raw_addr_quant = {}
-raw_size_quant = {}
-weights_quant  = {}
-
-raw_id   = []
-
-whole_length_quant = len(open(PATH_QUANT, 'rb').read()) # 全部字节数
-
 binfile_quant = open(PATH_QUANT, 'rb')
-
 layer_num = struct.unpack('<i', binfile_quant.read(4))[0]
 ANS = struct.pack('i', layer_num)
+ANS += binfile_quant.read(layer_num * 2 * 4)
 
-for i in range(layer_num):
-
-    layer_id   = struct.unpack('<i', binfile_quant.read(4))[0]
-    ANS += struct.pack('i', layer_id)
-
-    start_addr_quant = struct.unpack('<i', binfile_quant.read(4))[0]
-
-    raw_addr_quant[layer_id] = start_addr_quant
-    ANS += struct.pack('i', start_addr_quant)
-    raw_id.append(layer_id)
-
-for i in range(len(raw_id)-1):
-    raw_size_quant[raw_id[i]] = raw_addr_quant[raw_id[i+1]] - raw_addr_quant[raw_id[i]]
-
-raw_size_quant[raw_id[i+1]] = whole_length_quant - raw_addr_quant[raw_id[i+1]]
-
-for i in raw_id:
-    weights_quant[i] = []
-
-    if i not in get_bias_list(PATH_CSV):
-        for j in range(0, raw_size_quant[i], 1):
-            data = struct.unpack('<b', binfile_quant.read(1))[0]
-            weights_quant[i].append(data)
-    else:
-        for j in range(0, raw_size_quant[i], 2):
-            data = struct.unpack('<h', binfile_quant.read(2))[0]
-            weights_quant[i].append(data)
-
-
+weights_quant = bin2numpy_int8(PATH_QUANT, PATH_CSV)
 WEIGHT = torch.load(PATH_MODEL, map_location = torch.device('cpu'))
+
 
 
 #-------------------------------------#
 #       转换
 #-------------------------------------#
-for k in tqdm(weights_quant.keys()):
+for k in weights_quant.keys():
 
     WEIGHT[ORDER[k]] = torch.round(WEIGHT[ORDER[k]] / SCALE_TABLE[k])
 
@@ -85,17 +49,12 @@ for k in tqdm(weights_quant.keys()):
     if ORDER[k] == 'model.0.conv.weight':
         WEIGHT[ORDER[k]] = WEIGHT[ORDER[k]][:, :, [2, 1, 0], :]
 
-    WEIGHT[ORDER[k]] = WEIGHT[ORDER[k]].flatten().numpy()
+    WEIGHT[ORDER[k]] = list(WEIGHT[ORDER[k]].flatten().numpy().astype(int))
 
-    x = WEIGHT[ORDER[k]]
-    y = weights_quant[k]
-
-    if k not in get_bias_list(PATH_CSV):
-        for nnn in WEIGHT[ORDER[k]]:
-            ANS += struct.pack('b', int(nnn))
+    if k in get_bias_list(PATH_CSV):
+        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
     else:
-        for nnn in WEIGHT[ORDER[k]]:
-            ANS += struct.pack('h', int(nnn))
+        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'b', *WEIGHT[ORDER[k]])
 
 
 with open('json&raw/YoloV5_quantized_INQ.raw', 'wb+') as f:

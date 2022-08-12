@@ -1,8 +1,7 @@
 import torch
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 from get_the_order import ORDER
 from utils import bin2numpy_fp32
+
 
 
 #-------------------------------------#
@@ -24,9 +23,9 @@ WEIGHT = torch.load(PATH_MODEL).state_dict()
 #-------------------------------------#
 #       转换
 #-------------------------------------#
-for k in tqdm(weights_float.keys()):
+for k in weights_float.keys():
 
-    raw_float_all = torch.tensor(weights_float[k])                                # 浮点权重
+    raw_float_all = torch.tensor(weights_float[k])
 
     try:
         raw_float_all = raw_float_all.reshape(WEIGHT[ORDER[k]].permute(2, 3, 1, 0).contiguous().shape).contiguous()
@@ -35,16 +34,7 @@ for k in tqdm(weights_float.keys()):
         ...
 
     if ORDER[k] == 'model.0.conv.weight':
-        raw_float_all = raw_float_all[:,[2,1,0],:,:]
-
-    aa = raw_float_all.flatten().numpy()[0] / WEIGHT[ORDER[k]].flatten().numpy()[0]
-
-    plt.plot(WEIGHT[ORDER[k]].flatten().numpy(), '.', color = 'red')
-    plt.plot(raw_float_all.flatten().numpy() / aa, '.', color = 'green')
-
-    plt.show()
-    # plt.savefig(ORDER[k] + '.jpg')
-    plt.cla()               # 清空画布
+        raw_float_all = raw_float_all[:, [2, 1, 0], :, :]
 
     WEIGHT[ORDER[k]] = raw_float_all
 

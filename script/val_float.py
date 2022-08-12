@@ -112,20 +112,15 @@ for file in tqdm(os.listdir('assets/val640/')):
                         B_W = 4 * T_W * T_W * A_W[i][box] / ratio
                         B_H = 4 * T_H * T_H * A_H[i][box] / ratio
 
-                        x1 = B_X - B_W / 2
-                        y1 = B_Y - B_H / 2
-                        x2 = B_X + B_W / 2
-                        y2 = B_Y + B_H / 2
-
                         mscore, mindex = torch.max(BOX[5:], 0)
 
                         if (score / (1 + math.exp(-mscore.item())) > CONF):
                             scores.append(score / (1 + math.exp(-mscore.item())))
                             ccclas.append(mindex.item())
-                            anchorBoxes.append(x1)
-                            anchorBoxes.append(y1)
-                            anchorBoxes.append(x2)
-                            anchorBoxes.append(y2)
+                            anchorBoxes.append(B_X - B_W / 2)
+                            anchorBoxes.append(B_Y - B_H / 2)
+                            anchorBoxes.append(B_X + B_W / 2)
+                            anchorBoxes.append(B_Y + B_H / 2)
 
 
     scores = torch.tensor(scores)

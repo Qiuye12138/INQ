@@ -1,5 +1,4 @@
 import torch
-from tqdm import tqdm
 from get_the_order import ORDER
 from utils import bin2numpy_int8, get_scale_dict
 
@@ -9,8 +8,8 @@ from utils import bin2numpy_int8, get_scale_dict
 #       文件路径
 #-------------------------------------#
 PATH_MODEL = 'weights/base.torchscript'
-PATH_QUANT = 'json&raw/YoloV5_quantized.raw'                     # 定点raw路径
-PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'        # csv路径
+PATH_QUANT = 'json&raw/YoloV5_quantized.raw'
+PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
 
 
 
@@ -32,7 +31,7 @@ WEIGHT = torch.load(PATH_MODEL).state_dict()
 #-------------------------------------#
 #       转换
 #-------------------------------------#
-for k in tqdm(weights_quant.keys()):
+for k in weights_quant.keys():
 
     raw_fixed_all = torch.tensor(weights_quant[k]) * SCALE_TABLE[k]
 
@@ -43,7 +42,7 @@ for k in tqdm(weights_quant.keys()):
         ...
 
     if ORDER[k] == 'model.0.conv.weight':
-        raw_fixed_all = raw_fixed_all[:,[2,1,0],:,:]
+        raw_fixed_all = raw_fixed_all[:, [2, 1, 0], :, :]
 
     WEIGHT[ORDER[k]] = raw_fixed_all
 
