@@ -109,7 +109,7 @@ python script\getPadImg.py
 2.3、使用`Icraft`编译模型
 
 ```bash
-icraft compile configs\YoloV5_JDY_V2.0.ini
+icraft compile configs\YoloV5_8bit.ini
 ```
 
 2.4、`Icraft.raw`转回`Pytorch.pth`
