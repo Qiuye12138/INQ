@@ -13,16 +13,14 @@
 ├── logs                            # 由icraft compile生成
 ├── names
 │   └── coco.names
-├── res                             # 由python script\val_xxx.py生成
+├── res                             # 由python script\val.py生成
 ├── script
 │   ├── create_ICRAFT.py
 │   ├── get_the_order.py
 │   ├── getPadImg.py
 │   ├── ICRAFT.py                   # 由python script\create_ICRAFT.py生成
-│   ├── plot.py
-│   ├── pth2raw_quantize.py
-│   ├── raw2pth_norm.py
-│   ├── raw2pth_quantize.py
+│   ├── pth2raw.py
+│   ├── raw2pth.py
 │   ├── utils.py
 │   └── val.py
 └── weights
@@ -121,13 +119,13 @@ icraft compile configs\YoloV5_16bit.ini
 
 ```bash
 # 生成norm.pth
-python script\raw2pth_norm.py
+python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 32
 
 # 生成quantize.pth--8比特
-python script\raw2pth_quantize.py
+python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 8
 
 # 生成quantize.pth--16比特
-python script\raw2pth_quantize.py --bit 16
+python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 16
 ```
 
 2.5、生成`Icraft`参数
