@@ -1,30 +1,38 @@
 import torch
+import argparse
 from get_the_order import ORDER
-from utils import bin2numpy_int8, get_scale_dict
+from utils import bin2numpy_int8, bin2numpy_int16, get_scale_dict
 
 
 
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-PATH_MODEL = 'weights/base.torchscript'
-PATH_QUANT = 'json&raw/YoloV5_quantized.raw'
-PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
+parser = argparse.ArgumentParser()
+parser.add_argument('--PATH_MODEL', type = str, default = 'weights/base.torchscript')
+parser.add_argument('--PATH_QUANT', type = str, default = 'json&raw/YoloV5_quantized.raw')
+parser.add_argument('--PATH_CSV'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
+parser.add_argument('--bit'       , type = int, default = 8, choices=[8, 16])
+opt = parser.parse_args()
 
 
 
 #-------------------------------------#
 #       解析Scale
 #-------------------------------------#
-SCALE_TABLE = get_scale_dict(PATH_CSV)
+SCALE_TABLE = get_scale_dict(opt.PATH_CSV)
 
 
 
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-weights_quant = bin2numpy_int8(PATH_QUANT, PATH_CSV)
-WEIGHT = torch.load(PATH_MODEL).state_dict()
+if opt.bit == 8:
+    weights_quant = bin2numpy_int8(opt.PATH_QUANT, opt.PATH_CSV)
+else:
+    weights_quant = bin2numpy_int16(opt.PATH_QUANT, opt.PATH_CSV)
+
+WEIGHT = torch.load(opt.PATH_MODEL).state_dict()
 
 
 

@@ -4,6 +4,7 @@ import json
 import math
 import torch
 import shutil
+import argparse
 import torchvision
 from tqdm import tqdm
 from utils import yolores2cocores
@@ -16,23 +17,28 @@ from pycocotools.cocoeval import COCOeval
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-JSON_PATH = 'json&raw/YoloV5_quantized.json'
-RAW_PATH  = 'json&raw/YoloV5_quantized.raw'
-RES_PATH  = 'res/QUANT/'
+parser = argparse.ArgumentParser()
+parser.add_argument('--JSON_PATH', type = str, default = 'json&raw/YoloV5_optimized.json')
+parser.add_argument('--RAW_PATH' , type = str, default = 'json&raw/YoloV5_optimized.raw')
+parser.add_argument('--RES_PATH' , type = str, default = 'res/FLOAT/')
+parser.add_argument('--QUANT'    , const = True, nargs = '?', default = False)
 
-shutil.rmtree(RES_PATH, ignore_errors = True)
-os.makedirs(RES_PATH)
+opt = parser.parse_args()
+
+shutil.rmtree(opt.RES_PATH, ignore_errors = True)
+os.makedirs(opt.RES_PATH)
 
 
 
 #-------------------------------------#
 #       获取SCALE
 #-------------------------------------#
-SCALE = []
-with open(JSON_PATH, 'r') as f:
-    file = json.load(f)
-    for i in range(3):
-        SCALE.append(file['operations'][-1]['input_ftmp'][i]['norm_ratio'][0]['value'])
+if opt.QUANT:
+    SCALE = []
+    with open(opt.JSON_PATH, 'r') as f:
+        file = json.load(f)
+        for i in range(3):
+            SCALE.append(file['operations'][-1]['input_ftmp'][i]['norm_ratio'][0]['value'])
 
 
 
@@ -58,8 +64,8 @@ category_ids = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15,
 #-------------------------------------#
 #       加载模型
 #-------------------------------------#
-option_parser = {'json'     : JSON_PATH,
-                 'raw'      : RAW_PATH,
+option_parser = {'json'     : opt.JSON_PATH,
+                 'raw'      : opt.RAW_PATH,
                  'target'   : 'BUYI',
                  'fake_qf'  : 'false',
                  'cudamode' : 'true',
@@ -87,9 +93,14 @@ for file in tqdm(os.listdir('assets/val640/')):
     #       推理
     #-------------------------------------#
     output_quantized = network_quantized.run('assets/val640/' + file)
-    a = torch.from_numpy(output_quantized[0] * SCALE[0]).permute(0, 3, 1, 2)
-    b = torch.from_numpy(output_quantized[1] * SCALE[1]).permute(0, 3, 1, 2)
-    c = torch.from_numpy(output_quantized[2] * SCALE[2]).permute(0, 3, 1, 2)
+    a = torch.from_numpy(output_quantized[0]).permute(0, 3, 1, 2)
+    b = torch.from_numpy(output_quantized[1]).permute(0, 3, 1, 2)
+    c = torch.from_numpy(output_quantized[2]).permute(0, 3, 1, 2)
+
+    if opt.QUANT:
+        a *= SCALE[0]
+        b *= SCALE[1]
+        c *= SCALE[2]
 
     T = [a, b, c]
 
@@ -143,7 +154,7 @@ for file in tqdm(os.listdir('assets/val640/')):
     anchors_nms_idx = torchvision.ops.nms(anchorBoxes, scores, NMS)     # NMS，得到NMS后的真实框的id
 
 
-    with open(RES_PATH + file[:-4]+'.txt','w') as f:
+    with open(opt.RES_PATH + file[:-4]+'.txt','w') as f:
         for idx in anchors_nms_idx:
 
             x1 = anchorBoxes[idx][0].item()
@@ -165,9 +176,9 @@ for file in tqdm(os.listdir('assets/val640/')):
 
 
 
-JS_PATH = RES_PATH + 'yolov5s_predictions.json'
+JS_PATH = opt.RES_PATH + 'yolov5s_predictions.json'
 
-imgIds = yolores2cocores('assets/val2017/', RES_PATH, JS_PATH)
+imgIds = yolores2cocores('assets/val2017/', opt.RES_PATH, JS_PATH)
 cocoGt=COCO('assets/instances_val2017.json')
 cocoDt=cocoGt.loadRes(JS_PATH)
 cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')

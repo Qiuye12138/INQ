@@ -1,5 +1,6 @@
 import csv
 import json
+import argparse
 from get_the_order import ORDER
 
 
@@ -21,16 +22,18 @@ SILU_O  = []
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-JSON_PATH = 'json&raw/YoloV5_quantized.json'
-FCSV_PATH = 'logs/quantizer/BUYI/YoloV5/YoloV5_ftmps.csv'
-RCSV_PATH = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
+parser = argparse.ArgumentParser()
+parser.add_argument('--JSON_PATH', type = str, default = 'json&raw/YoloV5_quantized.json')
+parser.add_argument('--FCSV_PATH', type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_ftmps.csv')
+parser.add_argument('--RCSV_PATH'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
+opt = parser.parse_args()
 
 
 
 #-------------------------------------#
 #       解析normratio
 #-------------------------------------#
-with open(FCSV_PATH, 'r') as f:
+with open(opt.FCSV_PATH, 'r') as f:
     f_csv = csv.reader(f)
     for row in f_csv:
         try:
@@ -43,7 +46,7 @@ with open(FCSV_PATH, 'r') as f:
 #-------------------------------------#
 #       解析Scale
 #-------------------------------------#
-with open(RCSV_PATH, 'r') as f:
+with open(opt.RCSV_PATH, 'r') as f:
     f_csv = csv.reader(f)
     for row in f_csv:
         try:
@@ -56,7 +59,7 @@ with open(RCSV_PATH, 'r') as f:
 #-------------------------------------#
 #       解析SILU
 #-------------------------------------#
-with open(JSON_PATH, 'r') as f:
+with open(opt.JSON_PATH, 'r') as f:
     JSON = json.load(f)
     for op in JSON['operations']:
         if op['op_type'] == 'Silu':

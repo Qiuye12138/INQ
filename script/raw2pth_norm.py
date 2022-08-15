@@ -1,4 +1,5 @@
 import torch
+import argparse
 from get_the_order import ORDER
 from utils import bin2numpy_fp32
 
@@ -7,16 +8,18 @@ from utils import bin2numpy_fp32
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-PATH_MODEL = 'weights/base.torchscript'
-PATH_FLOAT = 'json&raw/YoloV5_normed.raw'
+parser = argparse.ArgumentParser()
+parser.add_argument('--PATH_MODEL', type = str, default = 'weights/base.torchscript')
+parser.add_argument('--PATH_FLOAT', type = str, default = 'json&raw/YoloV5_normed.raw')
+opt = parser.parse_args()
 
 
 
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-weights_float = bin2numpy_fp32(PATH_FLOAT)
-WEIGHT = torch.load(PATH_MODEL).state_dict()
+weights_float = bin2numpy_fp32(opt.PATH_FLOAT)
+WEIGHT = torch.load(opt.PATH_MODEL).state_dict()
 
 
 

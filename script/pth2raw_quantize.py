@@ -1,36 +1,44 @@
 import torch
 import struct
+import argparse
 from get_the_order import ORDER
-from utils import get_bias_list, get_scale_dict, bin2numpy_int8
+from utils import get_bias_list, get_scale_dict, bin2numpy_int8, bin2numpy_int16
 
 
 
 #-------------------------------------#
 #       文件路径
 #-------------------------------------#
-PATH_MODEL = 'weights/INQ99.pth'
-PATH_QUANT = 'json&raw/YoloV5_quantized.raw'
-PATH_CSV   = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'
+parser = argparse.ArgumentParser()
+parser.add_argument('--PATH_MODEL', type = str, default = 'weights/INQ99.pth')
+parser.add_argument('--PATH_QUANT', type = str, default = 'json&raw/YoloV5_quantized.raw')
+parser.add_argument('--PATH_CSV'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
+parser.add_argument('--bit'       , type = int, default = 8, choices=[8, 16])
+opt = parser.parse_args()
 
 
 
 #-------------------------------------#
 #       解析Scale
 #-------------------------------------#
-SCALE_TABLE = get_scale_dict(PATH_CSV)
+SCALE_TABLE = get_scale_dict(opt.PATH_CSV)
 
 
 
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-binfile_quant = open(PATH_QUANT, 'rb')
+binfile_quant = open(opt.PATH_QUANT, 'rb')
 layer_num = struct.unpack('<i', binfile_quant.read(4))[0]
 ANS = struct.pack('i', layer_num)
 ANS += binfile_quant.read(layer_num * 2 * 4)
 
-weights_quant = bin2numpy_int8(PATH_QUANT, PATH_CSV)
-WEIGHT = torch.load(PATH_MODEL, map_location = torch.device('cpu'))
+if opt.bit == 8:
+    weights_quant = bin2numpy_int8(opt.PATH_QUANT, opt.PATH_CSV)
+else:
+    weights_quant = bin2numpy_int16(opt.PATH_QUANT, opt.PATH_CSV)
+
+WEIGHT = torch.load(opt.PATH_MODEL, map_location = torch.device('cpu'))
 
 
 
@@ -51,10 +59,16 @@ for k in weights_quant.keys():
 
     WEIGHT[ORDER[k]] = list(WEIGHT[ORDER[k]].flatten().numpy().astype(int))
 
-    if k in get_bias_list(PATH_CSV):
-        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
+    if k in get_bias_list(opt.PATH_CSV):
+        if opt.bit == 8:
+            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
+        else:
+            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'i', *WEIGHT[ORDER[k]])
     else:
-        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'b', *WEIGHT[ORDER[k]])
+        if opt.bit == 8:
+            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'b', *WEIGHT[ORDER[k]])
+        else:
+            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
 
 
 with open('json&raw/YoloV5_quantized_INQ.raw', 'wb+') as f:
