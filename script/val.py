@@ -7,6 +7,7 @@ import shutil
 import argparse
 import torchvision
 from tqdm import tqdm
+from utils import letterbox
 from utils import yolores2cocores
 import icraftBY.simulator as sim
 from pycocotools.coco import COCO
@@ -78,21 +79,21 @@ network_quantized = sim.Network(option_parser)
 #-------------------------------------#
 #       遍历测试集
 #-------------------------------------#
-for file in tqdm(os.listdir('assets/val640/')):
+for file in tqdm(os.listdir('assets/val2017/')):
     #-----------------------------------------#
     #       前处理
     #-----------------------------------------#
     img_path = 'assets/val2017/' + file
     image  = cv2.imread(img_path)
-    IMG_H, IMG_W = image.shape[:2]
-    ratio = min(NET_W / IMG_W, NET_H / IMG_H)
+    resized_img, (ratio, _), (dw, dh) = letterbox(image)
+    resized_img = resized_img[None]
 
 
 
     #-------------------------------------#
     #       推理
     #-------------------------------------#
-    output_quantized = network_quantized.run('assets/val640/' + file)
+    output_quantized = network_quantized.run([resized_img])
     a = torch.from_numpy(output_quantized[0]).permute(0, 3, 1, 2)
     b = torch.from_numpy(output_quantized[1]).permute(0, 3, 1, 2)
     c = torch.from_numpy(output_quantized[2]).permute(0, 3, 1, 2)
@@ -129,8 +130,8 @@ for file in tqdm(os.listdir('assets/val640/')):
                         T_W = 1 / (1 + math.exp(-BOX[2].item()))
                         T_H = 1 / (1 + math.exp(-BOX[3].item()))
 
-                        B_X = (2 * T_X - 0.5 + w) * STRIDE[i] / ratio
-                        B_Y = (2 * T_Y - 0.5 + h) * STRIDE[i] / ratio
+                        B_X = ((2 * T_X - 0.5 + w) * STRIDE[i] - dw) / ratio
+                        B_Y = ((2 * T_Y - 0.5 + h) * STRIDE[i] - dh) / ratio
 
                         B_W = 4 * T_W * T_W * A_W[i][box] / ratio
                         B_H = 4 * T_H * T_H * A_H[i][box] / ratio

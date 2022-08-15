@@ -1,5 +1,6 @@
 import os
 import re
+import cv2
 import csv
 import json
 import struct
@@ -205,3 +206,27 @@ def yolores2cocores(originImagesDir, resultsDir, dtJsonPath):
         json.dump(dataset, f)
 
     return imgIds
+
+
+def letterbox(im, new_shape=(640, 640)):
+
+    shape = im.shape[:2]
+    if isinstance(new_shape, int):
+        new_shape = (new_shape, new_shape)
+
+    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+
+    ratio = r, r
+    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
+
+    dw /= 2
+    dh /= 2
+
+    if shape[::-1] != new_unpad:
+        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value = (114, 114, 114))
+
+    return im, ratio, (dw, dh)

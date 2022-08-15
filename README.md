@@ -2,7 +2,6 @@
 目录结构
 ├── assets
 │   ├── val2017                     # 自行下载
-│   ├── val640                      # 由python script\getPadImg.py生成
 │   └── instances_val2017.json      # 自行下载
 ├── configs
 │   ├── YoloV5_8bit.py
@@ -17,7 +16,6 @@
 ├── script
 │   ├── create_ICRAFT.py
 │   ├── get_the_order.py
-│   ├── getPadImg.py
 │   ├── ICRAFT.py                   # 由python script\create_ICRAFT.py生成
 │   ├── pth2raw.py
 │   ├── raw2pth.py
@@ -97,15 +95,9 @@ mv runs/train/fuse/weights/best.torchscript runs/train/fuse/weights/base.torchsc
 
 > 第二章所有命令均在当前仓库中运行
 
-2.1、生成测试图片
+2.1、将模型`base.torchscript`复制到`weights`文件夹下
 
-```bash
-python script\getPadImg.py
-```
-
-2.2、将模型`base.torchscript`复制到`weights`文件夹下
-
-2.3、使用`Icraft`编译模型
+2.2、使用`Icraft`编译模型
 
 ```bash
 # 8比特
@@ -115,7 +107,7 @@ icraft compile configs\YoloV5_8bit.ini
 icraft compile configs\YoloV5_16bit.ini
 ```
 
-2.4、`Icraft.raw`转回`Pytorch.pth`
+2.3、`Icraft.raw`转回`Pytorch.pth`
 
 ```bash
 # 生成norm.pth
@@ -128,7 +120,7 @@ python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'jso
 python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 16
 ```
 
-2.5、生成`Icraft`参数
+2.4、生成`Icraft`参数
 
 ```bash
 # 生成ICRAFT.py
