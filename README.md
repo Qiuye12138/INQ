@@ -243,7 +243,7 @@ python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'js
 
 # Icraft定点-INQ后--16bit
 python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.242  ↓1.8%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.411  ↓2.3%
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.260  ↓2.0%
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.431  ↓2.7%
 ```
 
