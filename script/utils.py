@@ -1,10 +1,10 @@
-import os
-import re
 import cv2
 import csv
-import json
+import torch
 import struct
-from tqdm import tqdm
+import torchvision
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
 
 
 
@@ -166,57 +166,12 @@ def bin2numpy_int16(PATH_RAW, PATH_CSV):
     return weights_quant
 
 
-def yolores2cocores(originImagesDir, resultsDir, dtJsonPath):
-
-    indexes = sorted(os.listdir(originImagesDir))
-    dataset = []
-    imgIds = []
-    
-    pattern = re.compile("^0+")
-
-    ann_id_cnt = 0
-    for index in tqdm(indexes):
-
-        txtFile = index.replace('.jpg','.txt').replace('.png','.txt')
-        img_id = int(re.sub(pattern, "", index).split('.')[0])
-
-        if not os.path.exists(os.path.join(resultsDir, txtFile)):
-            continue
-
-        with open(os.path.join(resultsDir, txtFile), 'r') as fr:
-            labelList = fr.readlines()
-            for label in labelList:
-                label = label.strip().split()
-                x1 = float(label[1])
-                y1 = float(label[2])
-                width = float(label[3])
-                height = float(label[4])
-            
-                cls_id = int(label[0]) 
-                score = float(label[5])
-
-                dataset.append({'image_id'   : img_id,
-                                'category_id': cls_id,
-                                'bbox'       : [x1, y1, width, height],
-                                'score'      : score})
-                ann_id_cnt += 1
-                imgIds.append(img_id)
-
-    with open(dtJsonPath, 'w') as f:
-        json.dump(dataset, f)
-
-    return imgIds
-
-
-def letterbox(im, new_shape=(640, 640)):
+def letterbox(im, new_shape):
 
     shape = im.shape[:2]
-    if isinstance(new_shape, int):
-        new_shape = (new_shape, new_shape)
 
     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
 
-    ratio = r, r
     new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
 
@@ -225,8 +180,140 @@ def letterbox(im, new_shape=(640, 640)):
 
     if shape[::-1] != new_unpad:
         im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value = (114, 114, 114))
+    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
 
-    return im, ratio, (dw, dh)
+    return im, r, (dw, dh)
+
+
+def scale_coords(coords, img0_shape, gain, pad):
+
+    coords[:, [0, 2]] -= pad[0]
+    coords[:, [1, 3]] -= pad[1]
+    coords[:, :4] /= gain
+    clip_coords(coords, img0_shape)
+
+    return coords
+
+
+def clip_coords(boxes, shape):
+
+    boxes[:, 0].clamp_(0, shape[1])
+    boxes[:, 1].clamp_(0, shape[0])
+    boxes[:, 2].clamp_(0, shape[1])
+    boxes[:, 3].clamp_(0, shape[0])
+
+
+def box_area(box):
+    return (box[2] - box[0]) * (box[3] - box[1])
+
+
+def box_iou(box1, box2):
+
+    (a1, a2), (b1, b2) = box1[:, None].chunk(2, 2), box2.chunk(2, 1)
+    inter = (torch.min(a2, b2) - torch.max(a1, b1)).clamp(0).prod(2)
+
+    return inter / (box_area(box1.T)[:, None] + box_area(box2.T) - inter)
+
+
+def xywh2xyxy(x):
+
+    y = x.clone()
+    y[:, 0] = x[:, 0] - x[:, 2] / 2
+    y[:, 1] = x[:, 1] - x[:, 3] / 2
+    y[:, 2] = x[:, 0] + x[:, 2] / 2
+    y[:, 3] = x[:, 1] + x[:, 3] / 2
+
+    return y
+
+
+def non_max_suppression(prediction, conf_thres, iou_thres, multi_label=False):
+
+    bs = prediction.shape[0]
+    nc = prediction.shape[2] - 5
+    xc = prediction[..., 4] > conf_thres
+
+    max_wh = 7680
+    max_nms = 30000
+    multi_label &= nc > 1
+
+    output = [torch.zeros((0, 6))] * bs
+    for xi, x in enumerate(prediction):
+        x = x[xc[xi]]
+
+        if not x.shape[0]:
+            continue
+
+        x[:, 5:] *= x[:, 4:5]
+
+        box = xywh2xyxy(x[:, :4])
+
+        if multi_label:
+            i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
+            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+        else:
+            conf, j = x[:, 5:].max(1, keepdim=True)
+            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
+
+        n = x.shape[0]
+        if not n:
+            continue
+        elif n > max_nms:
+            x = x[x[:, 4].argsort(descending=True)[:max_nms]]
+
+        c = x[:, 5:6] * max_wh
+        boxes, scores = x[:, :4] + c, x[:, 4]
+        i = torchvision.ops.nms(boxes, scores, iou_thres)
+
+        if i.shape[0] > 300:
+            i = i[:300]
+
+        output[xi] = x[i]
+
+    return output
+
+
+def xyxy2xywh(x):
+
+    y = x.clone()
+    y[:, 0] = (x[:, 0] + x[:, 2]) / 2
+    y[:, 1] = (x[:, 1] + x[:, 3]) / 2
+    y[:, 2] = x[:, 2] - x[:, 0]
+    y[:, 3] = x[:, 3] - x[:, 1]
+
+    return y
+
+
+def save_one_json(predn, jdict, image_id, class_map):
+
+    box = xyxy2xywh(predn[:, :4])
+    box[:, :2] -= box[:, 2:] / 2
+    for p, b in zip(predn.tolist(), box.tolist()):
+        jdict.append({
+            'image_id': image_id,
+            'category_id': class_map[int(p[5])],
+            'bbox': [round(x, 3) for x in b],
+            'score': round(p[4], 5)})
+
+
+def make_grid(nx, ny, ANCHORS):
+
+    shape = 1, 3, ny, nx, 2
+    y, x = torch.arange(ny), torch.arange(nx)
+    yv, xv = torch.meshgrid(y, x)
+    grid = torch.stack((xv, yv), 2).expand(shape) - 0.5
+    anchor_grid = (ANCHORS).view((1, 3, 1, 1, 2)).expand(shape)
+
+    return grid, anchor_grid
+
+
+def get_mAP(jdict):
+
+    cocoGt = COCO('assets/instances_val2017.json')
+    cocoDt = cocoGt.loadRes(jdict)
+    cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
+    cocoEval.evaluate()
+    cocoEval.accumulate()
+    cocoEval.summarize()

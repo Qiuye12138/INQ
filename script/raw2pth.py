@@ -55,7 +55,7 @@ for k in weights.keys():
         ...
 
     if ORDER[k] == 'model.0.conv.weight':
-        raw_ = raw[:, [2, 1, 0], :, :]
+        raw = raw[:, [2, 1, 0], :, :]
 
     WEIGHT[ORDER[k]] = raw
 

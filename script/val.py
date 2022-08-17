@@ -1,17 +1,11 @@
 import os
 import cv2
 import json
-import math
 import torch
-import shutil
 import argparse
-import torchvision
 from tqdm import tqdm
-from utils import letterbox
-from utils import yolores2cocores
 import icraftBY.simulator as sim
-from pycocotools.coco import COCO
-from pycocotools.cocoeval import COCOeval
+from utils import make_grid, non_max_suppression, scale_coords, save_one_json, letterbox, get_mAP
 
 
 
@@ -21,13 +15,9 @@ from pycocotools.cocoeval import COCOeval
 parser = argparse.ArgumentParser()
 parser.add_argument('--JSON_PATH', type = str, default = 'json&raw/YoloV5_optimized.json')
 parser.add_argument('--RAW_PATH' , type = str, default = 'json&raw/YoloV5_optimized.raw')
-parser.add_argument('--RES_PATH' , type = str, default = 'res/FLOAT/')
 parser.add_argument('--QUANT'    , const = True, nargs = '?', default = False)
 
 opt = parser.parse_args()
-
-shutil.rmtree(opt.RES_PATH, ignore_errors = True)
-os.makedirs(opt.RES_PATH)
 
 
 
@@ -51,8 +41,9 @@ NMS    = 0.65
 NET_W  = 640
 NET_H  = 640
 STRIDE = [   8,  16,  32]
-A_W    = [[ 10,  16,  33], [ 30,  62,   59], [116, 156, 373]]
-A_H    = [[ 13,  30,  23], [ 61,  45,  119], [ 90, 198, 326]]
+ANCHORS = torch.tensor([[[  10,  13], [  16,   30], [ 33,  23]],
+                        [[  30,  61], [  62,   45], [ 59, 119]],
+                        [[ 116,  90], [ 156,  198], [373, 326]]])
 
 category_ids = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15,
 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38,
@@ -75,7 +66,7 @@ option_parser = {'json'     : opt.JSON_PATH,
 network_quantized = sim.Network(option_parser)
 
 
-
+jdict = []
 #-------------------------------------#
 #       遍历测试集
 #-------------------------------------#
@@ -83,9 +74,9 @@ for file in tqdm(os.listdir('assets/val2017/')):
     #-----------------------------------------#
     #       前处理
     #-----------------------------------------#
-    img_path = 'assets/val2017/' + file
-    image  = cv2.imread(img_path)
-    resized_img, (ratio, _), (dw, dh) = letterbox(image)
+    image  = cv2.imread('assets/val2017/' + file)
+    IMG_H, IMG_W = image.shape[:2]
+    resized_img, ratio, (dw, dh) = letterbox(image, (NET_H, NET_W))
     resized_img = resized_img[None]
 
 
@@ -110,80 +101,23 @@ for file in tqdm(os.listdir('assets/val2017/')):
     #-----------------------------------------#
     #       后处理
     #-----------------------------------------#
-    anchorBoxes = []
-    scores = []
-    ccclas = []
-
+    z = []
     for i in range(3):
-        N, C, H, W = T[i].shape
-        for h in range(H):
-            for w in range(W):
-                for box in range(3):
-                    BOX = T[i][0, box*85:(box+1)*85, h, w]
+        bs, _, ny, nx = T[i].shape
+        T[i] = T[i].view(bs, 3, 85, ny, nx).permute(0, 1, 3, 4, 2).contiguous()
+        y = T[i].sigmoid()
+        grid, anchor_grid = make_grid(nx, ny, ANCHORS[i])
+        y[..., 0:2] = (y[..., 0:2] * 2 + grid) * STRIDE[i]
+        y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * anchor_grid
+        z.append(y.view(bs, -1, 85))
 
-                    score = 1 / (1 + math.exp(-BOX[4].item()))
+    Z = torch.cat(z, 1)
+    out = non_max_suppression(Z, CONF, NMS, multi_label = True)
 
-                    if (score > CONF):
-
-                        T_X = 1 / (1 + math.exp(-BOX[0].item()))
-                        T_Y = 1 / (1 + math.exp(-BOX[1].item()))
-                        T_W = 1 / (1 + math.exp(-BOX[2].item()))
-                        T_H = 1 / (1 + math.exp(-BOX[3].item()))
-
-                        B_X = ((2 * T_X - 0.5 + w) * STRIDE[i] - dw) / ratio
-                        B_Y = ((2 * T_Y - 0.5 + h) * STRIDE[i] - dh) / ratio
-
-                        B_W = 4 * T_W * T_W * A_W[i][box] / ratio
-                        B_H = 4 * T_H * T_H * A_H[i][box] / ratio
-
-                        mscore, mindex = torch.max(BOX[5:], 0)
-
-                        if (score / (1 + math.exp(-mscore.item())) > CONF):
-                            scores.append(score / (1 + math.exp(-mscore.item())))
-                            ccclas.append(mindex.item())
-                            anchorBoxes.append(B_X - B_W / 2)
-                            anchorBoxes.append(B_Y - B_H / 2)
-                            anchorBoxes.append(B_X + B_W / 2)
-                            anchorBoxes.append(B_Y + B_H / 2)
+    for si, pred in enumerate(out):
+        predn = pred.clone()
+        scale_coords(predn[:, :4], (IMG_H, IMG_W), ratio, (dw, dh))
+        save_one_json(predn, jdict, int(file.split('.')[0]), category_ids)
 
 
-    scores = torch.tensor(scores)
-    ccclas = torch.tensor(ccclas)
-    anchorBoxes = torch.tensor(anchorBoxes)
-    anchorBoxes = anchorBoxes.contiguous().view(-1, 4)
-
-    anchors_nms_idx = torchvision.ops.nms(anchorBoxes, scores, NMS)     # NMS，得到NMS后的真实框的id
-
-
-    with open(opt.RES_PATH + file[:-4]+'.txt','w') as f:
-        for idx in anchors_nms_idx:
-
-            x1 = anchorBoxes[idx][0].item()
-            y1 = anchorBoxes[idx][1].item()
-            x2 = anchorBoxes[idx][2].item()
-            y2 = anchorBoxes[idx][3].item()
-
-            w = x2 - x1
-            h = y2 - y1
-
-            id_ = str(category_ids[int(ccclas[idx].item())]) + ' '
-            x1 = str(int(x1)) + ' '
-            y1 = str(int(y1)) + ' '
-            w  = str(int(w)) + ' '
-            h  = str(int(h)) + ' '
-            s  = str(scores[idx].item())
-
-            f.write(id_ + x1 + y1 + w + h + s + '\n')
-
-
-
-JS_PATH = opt.RES_PATH + 'yolov5s_predictions.json'
-
-imgIds = yolores2cocores('assets/val2017/', opt.RES_PATH, JS_PATH)
-cocoGt=COCO('assets/instances_val2017.json')
-cocoDt=cocoGt.loadRes(JS_PATH)
-cocoEval = COCOeval(cocoGt, cocoDt, 'bbox')
-cocoEval.params.imgIds = sorted(imgIds)
-cocoEval.evaluate()
-cocoEval.accumulate()
-cocoEval.summarize()
+get_mAP(jdict)

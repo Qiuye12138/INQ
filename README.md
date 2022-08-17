@@ -12,7 +12,6 @@
 ├── logs                            # 由icraft compile生成
 ├── names
 │   └── coco.names
-├── res                             # 由python script\val.py生成
 ├── script
 │   ├── create_ICRAFT.py
 │   ├── get_the_order.py
@@ -111,7 +110,7 @@ icraft compile configs\YoloV5_16bit.ini
 
 ```bash
 # 生成norm.pth
-python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 32
+python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_normed.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 32
 
 # 生成quantize.pth--8比特
 python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 8
@@ -190,8 +189,8 @@ python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou
 
 # 16比特
 python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.  ↓%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.  ↓%
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.273  ↓0.7%
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.450  ↓0.7%
 ```
 
 3.7、`Pytorch.pth`转回`Icraft.raw`
@@ -199,17 +198,17 @@ python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou
 ```bash
 # 将在json&raw文件夹下生成YoloV5_quantized_INQ.raw
 # 8比特
-python script\pth2raw_quantize.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 8
+python script\pth2raw.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 8
 
 # 16比特
-python script\pth2raw_quantize.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 16
+python script\pth2raw.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 16
 
 
 # 复制一份json
-cp json&raw\YoloV5_quantized.json json&raw\YoloV5_quantized_INQ.json
+cp 'json&raw\YoloV5_quantized.json' 'json&raw\YoloV5_quantized_INQ.json'
 
 # 求md5
-certutil -hashfile json&raw\YoloV5_quantized_INQ.raw MD5    # Windows
+certutil -hashfile 'json&raw\YoloV5_quantized_INQ.raw' MD5  # Windows
 md5sum json&raw/YoloV5_quantized_INQ.raw MD5                # Linux
 
 # 将json&raw\YoloV5_quantized_INQ.json内的"raw_md5"改为YoloV5_quantized_INQ.raw的md5值
@@ -219,31 +218,31 @@ md5sum json&raw/YoloV5_quantized_INQ.raw MD5                # Linux
 
 ```bash
 # Icraft浮点
-python script\val.py --JSON_PATH 'json&raw/YoloV5_optimized.json' --RAW_PATH 'json&raw/YoloV5_optimized.raw' --RES_PATH 'res/FLOAT/'
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.260
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.434
+python script\val.py --JSON_PATH 'json&raw/YoloV5_optimized.json' --RAW_PATH 'json&raw/YoloV5_optimized.raw'
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.280
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.458
 
 ########################################################################################################################
 
 # Icraft定点-INQ前--8bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --RES_PATH 'res/QUANT/' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.226  ↓3.4%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.394  ↓4.0%
+python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --QUANT
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.241  ↓3.9%
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.417  ↓4.1%
 
 # Icraft定点-INQ后--8bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --RES_PATH 'res/QUANTINQ/' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.233  ↓2.7%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.407  ↓2.7%
+python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --QUANT
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.250  ↓3.0%
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.425  ↓3.3%
 
 ########################################################################################################################
 
 # Icraft定点-INQ前--16bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --RES_PATH 'res/QUANT/' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.245  ↓1.5%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.413  ↓2.1%
+python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --QUANT
+# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.265  ↓1.5%
+# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.436  ↓2.2%
 
 # Icraft定点-INQ后--16bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --RES_PATH 'res/QUANTINQ/' --QUANT
+python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --QUANT
 # Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.242  ↓1.8%
 # Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.411  ↓2.3%
 ```
