@@ -23,8 +23,8 @@
 └── weights
     ├── base.torchscript            # 基准模型，由第一章生成
     ├── INQ99.pth                   # 最终模型，由第三章生成
-    ├── norm.pth                    # 由python script\raw2pth_norm.py生成
-    └── quantize.pth                # 由python script\raw2pth_quantize.py生成
+    ├── norm.pth                    # 由python script\raw2pth.py生成
+    └── quantize.pth                # 由python script\raw2pth.py生成
 ```
 
 # 一、得到基准模型
