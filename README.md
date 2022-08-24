@@ -31,31 +31,23 @@
 
 > 第一章所有命令均在`ICraft_yolov5`仓库中运行
 
-1.1、克隆工程[ICraft_yolov5: Fine tuning YOLOv5 for Icraft](https://github.com/Qiuye12138/ICraft_yolov5)，当前处于`master`分支
-
-1.2、该仓库提供了一个预训练模型`yolov5n.pt`，测试其浮点精度（其他自行训练的模型也如此）
+## 1.1、克隆工程`ICraft_yolov5`
 
 ```bash
-python3 val.py --data coco.yaml --weights yolov5n.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.280
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.457
+# 当前处于master分支
+git clone https://github.com/Qiuye12138/ICraft_yolov5.git
 ```
 
-1.3、导出模型，这会将模型中的`BatchNorm`层融合
+## 1.2、得到融合后权重
+
+该仓库提供了两个预训练模型`yolov5n.pt`和`yolov5s.pt`，以下将以`YoloV5n`为例
 
 ```bash
 # 将在yolov5n.pt附近生成yolov5n.torchscript
-python3 export.py --weights yolov5n.pt --include torchscript 
+python3 export.py --weights yolov5n.pt --include torchscript
 ```
 
-1.4、切换到`Icraft`分支上
-
-```bash
-# 该分支在创建模型时去除了模型中的BatchNorm层，与正常模型不通用
-git checkout Icraft
-```
-
-1.5、`fuse`重训练
+## 1.3、`fuse`重训练
 
 > 该训练的目的：
 >
@@ -64,25 +56,20 @@ git checkout Icraft
 >
 > `--weights` : 强制重新从`yaml`创建模型，而不是加载已有模型
 >
-> `train_fuse.py`创建新模型后，使用`yolov5n.torchscript`内的参数初始化权重
+> `train.py`创建新模型后，使用`yolov5*.torchscript`内的参数初始化权重
 
 ```bash
-python3 train_fuse.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --batch-size 128 --device '1' --epochs 30 --name fuse
+# 该分支在创建模型时去除了模型中的BatchNorm层，与正常模型不通用
+git checkout Icraft
+
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight yolov5n.torchscript --batch-size 128 --name fuse --patience 10
 ```
 
-1.6、测试新模型精度
-
-```bash
-python3 val.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.280
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.457
-```
-
-1.7、导出模型
+## 1.4、导出模型
 
 ```bash
 # 将在best.pt附近生成best.torchscript
-python3 export.py --weights runs/train/fuse/weights/best.pt --include torchscript 
+python3 export.py --weights runs/train/fuse/weights/best.pt --include torchscript
 
 # 重命名为base.torchscript，作为后续实验的基准
 mv runs/train/fuse/weights/best.torchscript runs/train/fuse/weights/base.torchscript
@@ -94,11 +81,10 @@ mv runs/train/fuse/weights/best.torchscript runs/train/fuse/weights/base.torchsc
 
 > 第二章所有命令均在当前仓库中运行
 
-2.1、将模型`base.torchscript`复制到`weights`文件夹下
-
-2.2、使用`Icraft`编译模型
+## 2.1、使用`Icraft`编译模型
 
 ```bash
+# 务必先将模型base.torchscript复制到weights文件夹下
 # 8比特
 icraft compile configs\YoloV5_8bit.ini
 
@@ -106,7 +92,8 @@ icraft compile configs\YoloV5_8bit.ini
 icraft compile configs\YoloV5_16bit.ini
 ```
 
-2.3、`Icraft.raw`转回`Pytorch.pth`
+
+## 2.2、`Icraft.raw`转回`Pytorch.pth`
 
 ```bash
 # 生成norm.pth
@@ -119,7 +106,7 @@ python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'jso
 python script\raw2pth.py --PATH_MODEL 'weights/base.torchscript' --PATH_RAW 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv' --bit 16
 ```
 
-2.4、生成`Icraft`参数
+## 2.3、生成`Icraft`参数
 
 ```bash
 # 生成ICRAFT.py
@@ -132,68 +119,47 @@ python script\create_ICRAFT.py
 
 > 第三章所有命令均在`ICraft_yolov5`仓库中运行
 
-3.1、切换到`INQ`分支
+## 3.1、代码准备
+
+需要对`Pytorch`做一些修改，才能使用`INQ`
+
+- 为`Tensor`类添加属性`MaskMatrix`，作为逐元素冻结权重所需要的掩膜
+
+  ```bash
+  # 我的路径 ： /usr/local/lib/python3.6/dist-packages/torch/_tensor.py
+  MaskMatrix = None
+  ```
+
+- 在优化器更新梯度前，将梯度与掩膜相乘
+
+  ```bash
+  # 我的路径 ： /usr/local/lib/python3.6/dist-packages/torch/optim/_functional.py
+  if param.MaskMatrix:
+      param.add_(d_p*param.MaskMatrix, alpha=-lr)
+  ```
+
+## 3.2、文件准备
+
+将`ICRAFT.py`复制到当前路径下；将`norm.pth`、`quantize.pth`复制到`runs/train/fuse/weights/`
+
+## 3.3、开始`INQ`
 
 ```bash
 # 该分支模拟了Icraft将特征图归一化后的运算，与正常模型不通用
-# 8比特
 git checkout INQ
 
-# 16比特
-git checkout INQ_16bit
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/fuse/weights/quantize.pth --batch-size 128 --device '1' --name INQ50 --patience 10 --ratio 0.5
+
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ50/weights/best.pt --batch-size 128 --device '1' --name INQ75 --patience 10 --ratio 0.75
+
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ75/weights/best.pt --batch-size 128 --device '1' --name INQ875 --patience 10 --ratio 0.875
+
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ875/weights/best.pt --batch-size 128 --device '1' --name INQ95 --patience 10 --ratio 0.75
+
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ95/weights/best.pt --batch-size 128 --device '1' --name INQ99 --patience 10 --ratio 0.99
 ```
 
-3.2、将`ICRAFT.py`复制到当前路径下；将`norm.pth`、`quantize.pth`复制到`runs/train/fuse/weights/`
-
-3.3、测试`norm`精度
-
-> 事实上由于添加了特征图量化算子，该步骤已经无法复现
->
-> 除非你手动把`models/common.py`内`FakeQuantize`的`forward`改为`return x`，忽略量化
->
-> 记得改回来
-
-```bash
-python3 val_norm.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.280
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.457
-```
-
-3.4、测试`quantize`精度
-
-```bash
-# 8比特
-python3 val_quantize.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.244  ↓3.6%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.419  ↓3.8%
-
-# 16比特
-python3 val_quantize.py --data coco.yaml --weights runs/train/fuse/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.257  ↓2.3%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.430  ↓2.7%
-```
-
-3.5、开始`INQ`
-
-```bash
-auto.sh
-```
-
-3.6、测试`INQ`精度
-
-```bash
-# 8比特
-python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.263  ↓1.7%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.442  ↓1.5%
-
-# 16比特
-python3 val.py --data coco.yaml --weights runs/train/INQ99/weights/best.pt --iou-thres 0.65
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.273  ↓0.7%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.450  ↓0.7%
-```
-
-3.7、`Pytorch.pth`转回`Icraft.raw`
+## 3.4、`Pytorch.pth`转回`Icraft.raw`
 
 ```bash
 # 将在json&raw文件夹下生成YoloV5_quantized_INQ.raw
@@ -214,36 +180,15 @@ md5sum json&raw/YoloV5_quantized_INQ.raw MD5                # Linux
 # 将json&raw\YoloV5_quantized_INQ.json内的"raw_md5"改为YoloV5_quantized_INQ.raw的md5值
 ```
 
-3.8、效果测试
+## 3.5、效果测试
 
 ```bash
 # Icraft浮点
 python script\val.py --JSON_PATH 'json&raw/YoloV5_optimized.json' --RAW_PATH 'json&raw/YoloV5_optimized.raw'
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.280
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.458
 
-########################################################################################################################
-
-# Icraft定点-INQ前--8bit
+# Icraft定点-INQ前
 python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.241  ↓3.9%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.417  ↓4.1%
 
-# Icraft定点-INQ后--8bit
+# Icraft定点-INQ后
 python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.250  ↓3.0%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.425  ↓3.3%
-
-########################################################################################################################
-
-# Icraft定点-INQ前--16bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.265  ↓1.5%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.436  ↓2.2%
-
-# Icraft定点-INQ后--16bit
-python script\val.py --JSON_PATH 'json&raw/YoloV5_quantized_INQ.json' --RAW_PATH 'json&raw/YoloV5_quantized_INQ.raw' --QUANT
-# Average Precision (AP) @[ IoU=0.50:0.95 | area= all | maxDets=100 ] = 0.260  ↓2.0%
-# Average Precision (AP) @[ IoU=0.50      | area= all | maxDets=100 ] = 0.431  ↓2.7%
 ```
-
