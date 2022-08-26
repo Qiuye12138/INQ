@@ -59,7 +59,7 @@ option_parser = {'json'     : opt.JSON_PATH,
                  'target'   : 'BUYI',
                  'fake_qf'  : 'false',
                  'cudamode' : 'false',
-                 'log_path' : 'yyy',
+                 'log_path' : 'dump',
                  'dump_ftmp': 'SQB',
                  'show'     : 'false'}
 

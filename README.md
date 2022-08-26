@@ -10,8 +10,6 @@
 │   └── pic_list_map.txt
 ├── json&raw                        # 由icraft compile生成
 ├── logs                            # 由icraft compile生成
-├── names
-│   └── coco.names
 ├── script
 │   ├── create_ICRAFT.py
 │   ├── detect.py

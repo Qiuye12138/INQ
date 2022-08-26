@@ -3,6 +3,7 @@ __pycache__
 val2017/
 json&raw/
 logs/
+dump/
 
 instances_val2017.json
 ICRAFT.py
