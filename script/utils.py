@@ -317,3 +317,13 @@ def get_mAP(jdict):
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
+
+
+def smart_load(path):
+
+    if path.endswith(('.torchscript', '.pt')) :
+        weights = torch.load(path, map_location = torch.device('cpu')).state_dict()
+    elif path.endswith('.pth'):
+        weights = torch.load(path, map_location = torch.device('cpu'))
+
+    return weights

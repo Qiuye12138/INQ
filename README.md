@@ -4,7 +4,7 @@
 │   ├── val2017                     # 自行下载
 │   └── instances_val2017.json      # 自行下载
 ├── configs
-│   ├── YoloV5_8bit.py
+│   ├── YoloV5_8bit.ini
 │   └── YoloV5_16bit.ini
 ├── images
 │   └── pic_list_map.txt
@@ -14,15 +14,17 @@
 │   └── coco.names
 ├── script
 │   ├── create_ICRAFT.py
+│   ├── detect.py
 │   ├── get_the_order.py
 │   ├── ICRAFT.py                   # 由python script\create_ICRAFT.py生成
+│   ├── plot.py
 │   ├── pth2raw.py
 │   ├── raw2pth.py
 │   ├── utils.py
 │   └── val.py
 └── weights
     ├── base.torchscript            # 基准模型，由第一章生成
-    ├── INQ99.pth                   # 最终模型，由第三章生成
+    ├── INQ99.torchscript           # 最终模型，由第三章生成
     ├── norm.pth                    # 由python script\raw2pth.py生成
     └── quantize.pth                # 由python script\raw2pth.py生成
 ```
@@ -134,7 +136,7 @@ python script\create_ICRAFT.py
 
   ```bash
   # 我的路径 ： /usr/local/lib/python3.6/dist-packages/torch/optim/_functional.py
-  if param.MaskMatrix:
+  if param.MaskMatrix != None:
       param.add_(d_p*param.MaskMatrix, alpha=-lr)
   ```
 
@@ -148,15 +150,11 @@ python script\create_ICRAFT.py
 # 该分支模拟了Icraft将特征图归一化后的运算，与正常模型不通用
 git checkout INQ
 
-python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/fuse/weights/quantize.pth --batch-size 128 --device '1' --name INQ50 --patience 10 --ratio 0.5
-
-python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ50/weights/best.pt --batch-size 128 --device '1' --name INQ75 --patience 10 --ratio 0.75
-
-python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ75/weights/best.pt --batch-size 128 --device '1' --name INQ875 --patience 10 --ratio 0.875
-
-python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ875/weights/best.pt --batch-size 128 --device '1' --name INQ95 --patience 10 --ratio 0.75
-
-python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ95/weights/best.pt --batch-size 128 --device '1' --name INQ99 --patience 10 --ratio 0.99
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/fuse/weights/quantize.pth --batch-size 128 --name INQ50  --patience 10 --ratio 0.5
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ50/weights/best.pt     --batch-size 128 --name INQ75  --patience 10 --ratio 0.75
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ75/weights/best.pt     --batch-size 128 --name INQ875 --patience 10 --ratio 0.875
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ875/weights/best.pt    --batch-size 128 --name INQ95  --patience 10 --ratio 0.75
+python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.yaml --weights '' --preweight runs/train/INQ95/weights/best.pt     --batch-size 128 --name INQ99  --patience 10 --ratio 0.99
 ```
 
 ## 3.4、`Pytorch.pth`转回`Icraft.raw`
@@ -164,10 +162,10 @@ python3 train.py --data coco.yaml --cfg yolov5n.yaml --hyp data/hyps/stable_hyp.
 ```bash
 # 将在json&raw文件夹下生成YoloV5_quantized_INQ.raw
 # 8比特
-python script\pth2raw.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 8
+python script\pth2raw.py --PATH_MODEL 'weights/INQ99.torchscript' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 8
 
 # 16比特
-python script\pth2raw.py --PATH_MODEL 'weights/INQ99.pth' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 16
+python script\pth2raw.py --PATH_MODEL 'weights/INQ99.torchscript' --PATH_QUANT 'json&raw/YoloV5_quantized.raw' --PATH_CSV 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv'  --bit 16
 
 
 # 复制一份json
@@ -180,7 +178,31 @@ md5sum json&raw/YoloV5_quantized_INQ.raw MD5                # Linux
 # 将json&raw\YoloV5_quantized_INQ.json内的"raw_md5"改为YoloV5_quantized_INQ.raw的md5值
 ```
 
-## 3.5、效果测试
+
+
+# 四、小工具
+
+## 4.1、画图
+
+```bash
+# 看量化前后权重分布
+python script\plot.py --PATH_MODEL0 'weights/norm.pth' --PATH_MODEL1 'weights/quantize.pth'
+
+# 看INQ前后权重分布
+python script\plot.py --PATH_MODEL0 'weights/quantize.pth' --PATH_MODEL1 'weights/INQ99.torchscript' --ratio 0.5
+```
+
+## 4.2、保存每层特征图
+
+```bash
+# 浮点特征图
+python script\detect.py --JSON_PATH 'json&raw/YoloV5_optimized.json' --RAW_PATH 'json&raw/YoloV5_optimized.raw'
+
+# 定点特征图
+python script\detect.py --JSON_PATH 'json&raw/YoloV5_quantized.json' --RAW_PATH 'json&raw/YoloV5_quantized.raw' --QUANT
+```
+
+## 4.3、测试精度
 
 ```bash
 # Icraft浮点

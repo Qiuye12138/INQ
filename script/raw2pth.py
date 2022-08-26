@@ -1,7 +1,7 @@
 import torch
 import argparse
 from get_the_order import ORDER
-from utils import bin2numpy_int8, bin2numpy_int16, bin2numpy_fp32, get_scale_dict
+from utils import *
 
 
 
@@ -34,7 +34,7 @@ elif opt.bit == 16:
 else:
     weights = bin2numpy_fp32(opt.PATH_RAW)
 
-WEIGHT = torch.load(opt.PATH_MODEL).state_dict()
+WEIGHT = smart_load(opt.PATH_MODEL)
 
 
 

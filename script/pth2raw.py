@@ -2,7 +2,7 @@ import torch
 import struct
 import argparse
 from get_the_order import ORDER
-from utils import get_bias_list, get_scale_dict, bin2numpy_int8, bin2numpy_int16
+from utils import *
 
 
 
@@ -10,7 +10,7 @@ from utils import get_bias_list, get_scale_dict, bin2numpy_int8, bin2numpy_int16
 #       文件路径
 #-------------------------------------#
 parser = argparse.ArgumentParser()
-parser.add_argument('--PATH_MODEL', type = str, default = 'weights/INQ99.pth')
+parser.add_argument('--PATH_MODEL', type = str, default = 'weights/INQ99.torchscript')
 parser.add_argument('--PATH_QUANT', type = str, default = 'json&raw/YoloV5_quantized.raw')
 parser.add_argument('--PATH_CSV'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
 parser.add_argument('--bit'       , type = int, default = 8, choices=[8, 16])
@@ -38,7 +38,7 @@ if opt.bit == 8:
 else:
     weights_quant = bin2numpy_int16(opt.PATH_QUANT, opt.PATH_CSV)
 
-WEIGHT = torch.load(opt.PATH_MODEL, map_location = torch.device('cpu'))
+WEIGHT = smart_load(opt.PATH_MODEL)
 
 
 

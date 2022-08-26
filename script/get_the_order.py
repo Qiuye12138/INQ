@@ -1,6 +1,5 @@
-import torch
 import numpy as np
-from utils import bin2numpy_fp32
+from utils import *
 
 
 #-------------------------------------#
@@ -15,7 +14,7 @@ PATH_FLOAT = 'json&raw/YoloV5_parsed.raw'
 #       解析权重
 #-------------------------------------#
 weights_float = bin2numpy_fp32(PATH_FLOAT)
-model = torch.load(PATH_MODEL).state_dict()
+model = smart_load(PATH_MODEL)
 
 
 ORDER = {}
