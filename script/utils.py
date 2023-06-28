@@ -11,12 +11,12 @@ from pycocotools.cocoeval import COCOeval
 def get_bias_list(PATH_CSV):
     '''
     只接受raws.csv，不接受ftmps.csv
-    若第三列max为空，则视为bias层，返回其第一列raw_id
+    若第四列scale为0，则视为bias层，返回其第一列raw_id
     '''
     with open(PATH_CSV, 'r') as f:
         f_csv = csv.reader(f)
         next(f_csv)
-        return [int(row[0]) for row in f_csv if row[3] == '']
+        return [int(row[0]) for row in f_csv if row[4] == "0"]
 
 
 def get_scale_dict(PATH_CSV):
@@ -29,7 +29,7 @@ def get_scale_dict(PATH_CSV):
         f_csv = csv.reader(f)
         next(f_csv)
         for row in f_csv:
-            SCALE_TABLE[int(row[0])] = float(row[4].split(' ')[0])
+            SCALE_TABLE[int(row[0])] = 2 ** -float(row[6].split(' ')[0])
 
     return SCALE_TABLE
 

@@ -13,7 +13,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--PATH_MODEL', type = str, default = 'weights/INQ99.torchscript')
 parser.add_argument('--PATH_QUANT', type = str, default = 'json&raw/YoloV5_quantized.raw')
 parser.add_argument('--PATH_CSV'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
-parser.add_argument('--bit'       , type = int, default = 8, choices=[8, 16])
 opt = parser.parse_args()
 
 
@@ -33,10 +32,7 @@ layer_num = struct.unpack('<i', binfile_quant.read(4))[0]
 ANS = struct.pack('i', layer_num)
 ANS += binfile_quant.read(layer_num * 2 * 4)
 
-if opt.bit == 8:
-    weights_quant = bin2numpy_int8(opt.PATH_QUANT, opt.PATH_CSV)
-else:
-    weights_quant = bin2numpy_int16(opt.PATH_QUANT, opt.PATH_CSV)
+weights_quant = bin2numpy_int16(opt.PATH_QUANT, opt.PATH_CSV)
 
 WEIGHT = smart_load(opt.PATH_MODEL)
 
@@ -60,15 +56,9 @@ for k in weights_quant.keys():
     WEIGHT[ORDER[k]] = list(WEIGHT[ORDER[k]].flatten().numpy().astype(int))
 
     if k in get_bias_list(opt.PATH_CSV):
-        if opt.bit == 8:
-            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
-        else:
-            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'i', *WEIGHT[ORDER[k]])
+        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'i', *WEIGHT[ORDER[k]])
     else:
-        if opt.bit == 8:
-            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'b', *WEIGHT[ORDER[k]])
-        else:
-            ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
+        ANS += struct.pack(str(len(WEIGHT[ORDER[k]])) + 'h', *WEIGHT[ORDER[k]])
 
 
 with open('json&raw/YoloV5_quantized_INQ.raw', 'wb+') as f:

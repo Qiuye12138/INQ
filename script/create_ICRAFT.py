@@ -50,7 +50,7 @@ with open(opt.RCSV_PATH, 'r') as f:
     f_csv = csv.reader(f)
     for row in f_csv:
         try:
-            TABLE_R[int(row[0])] = float(row[4].split(' ')[0])
+            TABLE_R[int(row[0])] = 2 ** -float(row[6].split(' ')[0])
         except:
             continue
 

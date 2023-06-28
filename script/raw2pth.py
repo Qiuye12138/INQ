@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--PATH_MODEL', type = str, default = 'weights/base.torchscript')
 parser.add_argument('--PATH_RAW'  , type = str, default = 'json&raw/YoloV5_quantized.raw')
 parser.add_argument('--PATH_CSV'  , type = str, default = 'logs/quantizer/BUYI/YoloV5/YoloV5_raws.csv')
-parser.add_argument('--bit'       , type = int, default = 8, choices=[8, 16, 32])
+parser.add_argument('--bit'       , type = int, default = 12, choices=[12, 32])
 opt = parser.parse_args()
 
 
@@ -27,9 +27,7 @@ SCALE_TABLE = get_scale_dict(opt.PATH_CSV)
 #-------------------------------------#
 #       解析权重
 #-------------------------------------#
-if opt.bit == 8:
-    weights = bin2numpy_int8(opt.PATH_RAW, opt.PATH_CSV)
-elif opt.bit == 16:
+if opt.bit == 12:
     weights = bin2numpy_int16(opt.PATH_RAW, opt.PATH_CSV)
 else:
     weights = bin2numpy_fp32(opt.PATH_RAW)
